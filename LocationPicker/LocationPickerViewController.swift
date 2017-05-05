@@ -52,6 +52,8 @@ open class LocationPickerViewController: UIViewController {
 
 	/// default: .Default
 	public var statusBarStyle: UIStatusBarStyle = .default
+    
+    public var isCancelButtonVisible: Bool = false
 	
 	public var mapType: MKMapType = .hybrid {
 		didSet {
@@ -82,7 +84,8 @@ open class LocationPickerViewController: UIViewController {
 	
 	var mapView: MKMapView!
 	var locationButton: UIButton?
-	
+    var closeButton: UIBarButtonItem!
+    
 	lazy var results: LocationSearchResultsViewController = {
 		let results = LocationSearchResultsViewController()
 		results.onSelectLocation = { [weak self] in self?.selectedLocation($0) }
@@ -116,7 +119,7 @@ open class LocationPickerViewController: UIViewController {
 		mapView = MKMapView(frame: UIScreen.main.bounds)
 		mapView.mapType = mapType
 		view = mapView
-		
+        
 		if showCurrentLocationButton {
 			let button = UIButton(frame: CGRect(x: 0, y: 0, width: 32, height: 32))
 			button.backgroundColor = currentLocationButtonBackground
@@ -134,6 +137,11 @@ open class LocationPickerViewController: UIViewController {
 	open override func viewDidLoad() {
 		super.viewDidLoad()
 		
+        if isCancelButtonVisible {
+            closeButton = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(LocationPickerViewController.handleCancelButton))
+            navigationItem.leftBarButtonItem = closeButton
+        }
+        
 		locationManager.delegate = self
 		mapView.delegate = self
 		searchBar.delegate = self
@@ -216,6 +224,10 @@ open class LocationPickerViewController: UIViewController {
 		let region = MKCoordinateRegionMakeWithDistance(coordinate, resultRegionDistance, resultRegionDistance)
 		mapView.setRegion(region, animated: animated)
 	}
+    
+    func handleCancelButton() {
+        self.dismiss(animated: true, completion: nil)
+    }
 }
 
 extension LocationPickerViewController: CLLocationManagerDelegate {
@@ -231,8 +243,8 @@ extension LocationPickerViewController: CLLocationManagerDelegate {
 
 extension LocationPickerViewController: UISearchResultsUpdating {
 	public func updateSearchResults(for searchController: UISearchController) {
-		guard let term = searchController.searchBar.text else { return }
-		
+		guard var term = searchController.searchBar.text else { return }
+        
 		searchTimer?.invalidate()
 
 		let searchTerm = term.trimmingCharacters(in: CharacterSet.whitespaces)
@@ -262,7 +274,7 @@ extension LocationPickerViewController: UISearchResultsUpdating {
 		
 		if let location = locationManager.location, useCurrentLocationAsHint {
 			request.region = MKCoordinateRegion(center: location.coordinate,
-				span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2))
+				span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5))
 		}
 		
 		localSearch?.cancel()
@@ -388,4 +400,13 @@ extension LocationPickerViewController: UISearchBarDelegate {
 			searchBar.text = " "
 		}
 	}
+    
+    public func searchBarShouldBeginEditing(_ searchBar: UISearchBar) -> Bool {
+        navigationItem.leftBarButtonItem = nil
+        return true
+    }
+    
+    public func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+        navigationItem.leftBarButtonItem = closeButton
+    }
 }
